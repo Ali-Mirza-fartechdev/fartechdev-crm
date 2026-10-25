@@ -15,7 +15,10 @@ export function useUnreadMessages() {
   return useQuery({
     queryKey: [...M_KEY, "unread"], refetchInterval: 60_000, refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { count } = await supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null);
+      // Only messages sent TO me count. RLS also lets me read messages I sent, which must never show as unread.
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return 0;
+      const { count } = await supabase.from("messages").select("id", { count: "exact", head: true }).eq("recipient_id", u.user.id).is("read_at", null);
       return count ?? 0;
     },
   });
