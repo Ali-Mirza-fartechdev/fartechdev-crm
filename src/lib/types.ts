@@ -51,3 +51,37 @@ export const REMINDER_OPTIONS: { value: number; label: string }[] = [
 ];
 
 export const label = (s: string) => s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+
+export type Stage = { id: string; name: string; position: number; is_won: boolean; is_lost: boolean; probability: number };
+export type Deal = {
+  id: string; title: string; lead_id: string | null; client_id: string | null; stage_id: string; value: number; currency: string;
+  owner_id: string; expected_close_date: string | null; closed_at: string | null; won_confirmed_at: string | null; lost_reason: string | null;
+  notes: string | null; created_at: string;
+};
+export type QuoteStatus = "draft" | "submitted" | "approved" | "rejected" | "cancelled";
+export type Quote = {
+  id: string; quote_number: string; deal_id: string; status: QuoteStatus; currency: string; customer_name: string; customer_company: string | null;
+  customer_email: string | null; customer_country: string | null; project_title: string; project_description: string | null;
+  delivery_date: string | null; payment_terms: string | null; tax_rate: number; notes: string | null; upfront_type: string | null;
+  upfront_value: number | null; finance_notes: string | null; rejection_reason: string | null; submitted_at: string | null;
+  invoice_id: string | null; created_by: string | null; created_at: string;
+};
+export type QuoteItem = { id: string; quote_id: string; position: number; description: string; quantity: number; unit_price: number };
+export type InvoiceBalance = {
+  invoice_id: string; invoice_number: string; client_id: string; deal_id: string | null; quote_id: string | null; status: "draft" | "sent" | "void";
+  currency: string; issue_date: string; due_date: string; subtotal: number; tax_amount: number; total: number; amount_paid: number;
+  balance_due: number; payment_state: string; is_overdue: boolean; upfront_amount: number; upfront_received: boolean; last_paid_at: string | null;
+};
+export type Payment = { id: string; invoice_id: string; amount: number; paid_at: string; method: string; reference: string | null; notes: string | null };
+export type Project = {
+  id: string; name: string; description: string | null; client_id: string | null; status: "planning" | "active" | "on_hold" | "completed" | "cancelled";
+  project_manager_id: string | null; team_lead_id: string | null; start_date: string | null; due_date: string | null; created_at: string;
+};
+export type TaskStatus = "todo" | "in_progress" | "in_review" | "blocked" | "done" | "cancelled";
+export const TASK_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
+export type Task = {
+  id: string; project_id: string; title: string; description: string | null; status: TaskStatus; priority: Priority;
+  assigned_to: string | null; due_date: string | null; completed_at: string | null; created_at: string;
+};
+export type Message = { id: string; sender_id: string; recipient_id: string; body: string; created_at: string; read_at: string | null };
+export type Contact = { id: string; full_name: string; role: Role; can_start: boolean; last_body: string | null; last_at: string | null; last_from_me: boolean | null; unread: number };

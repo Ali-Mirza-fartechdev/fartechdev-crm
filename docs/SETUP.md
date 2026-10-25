@@ -23,7 +23,11 @@ supabase db push
 ```
 or paste `supabase/migrations/*.sql` into **SQL Editor** in filename order. Confirm the NOTICE from 0005 does **not** say pg_cron is unavailable; if it does, run `supabase/scripts/schedule_reminders.sql` once.
 
+## 3b. Updates
+Later database updates ship as separate files (e.g. `supabase/migrations/…0006…sql`): paste into SQL Editor and run once, in order.
+
 ## 4. Deploy the admin Edge Function
+> **Dashboard route:** Edge Functions → *admin-users* → Details → turn **OFF** “Verify JWT with legacy secret”. Newer projects sign sessions with asymmetric keys, which the legacy gateway check rejects (401). The function verifies the caller itself and requires an active Super Admin.
 ```bash
 supabase secrets set AUTH_EMAIL_DOMAIN=crm.fartech.com ALLOWED_ORIGINS=https://<your-site>,http://localhost:5173
 supabase functions deploy admin-users

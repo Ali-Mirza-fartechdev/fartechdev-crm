@@ -8,6 +8,7 @@ import App from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { ToastProvider } from "./components/ui";
+import { ConfirmProvider } from "./components/extra";
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 
@@ -16,9 +17,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ThemeProvider>
       <QueryClientProvider client={qc}>
         <ToastProvider>
-          <BrowserRouter>
-            <AuthProvider><App /></AuthProvider>
-          </BrowserRouter>
+          <ConfirmProvider>
+            <BrowserRouter>
+              <AuthProvider><App /></AuthProvider>
+            </BrowserRouter>
+          </ConfirmProvider>
         </ToastProvider>
       </QueryClientProvider>
     </ThemeProvider>

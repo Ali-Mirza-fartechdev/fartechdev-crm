@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Clock, ExternalLink, Mail, MessageSquare, NotebookPen, Pencil, Phone, Video, Users, X } from "lucide-react";
+import { Check, Clock, ExternalLink, Mail, MessageSquare, NotebookPen, Pencil, Phone, Trash2, Video, Users, X } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Modal, errMsg, useToast } from "@/components/ui";
 import { bucketOf, formatInTz, relative } from "@/lib/time";
 import { label, type FollowUp } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
+import { useConfirm } from "@/components/extra";
+import { useQueryClient } from "@tanstack/react-query";
 import { FollowUpForm } from "./FollowUpForm";
 import { useAddFollowUpNote, useCancel, useComplete } from "./api";
 
@@ -17,6 +20,13 @@ export function FollowUpItem({ f, showEntity = true }: { f: FollowUp; showEntity
   const [mode, setMode] = useState<null | "edit" | "complete" | "note" | "cancel">(null);
   const [text, setText] = useState("");
   const complete = useComplete(), cancel = useCancel(), note = useAddFollowUpNote();
+  const confirm = useConfirm(); const qc = useQueryClient();
+  const remove = async () => {
+    if (!(await confirm({ title: "Delete this follow-up?", body: "It and its reminders are removed permanently.", danger: true, confirmLabel: "Delete" }))) return;
+    const { error } = await supabase.rpc("delete_follow_up", { p_id: f.id });
+    if (error) return toast(errMsg(error), "error");
+    toast("Follow-up deleted."); void qc.invalidateQueries({ queryKey: ["follow-ups"] }); void qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
   const bucket = bucketOf(f, tz);
   const Icon = ICON[f.follow_up_type] ?? Clock;
   const state = bucket === "overdue" ? "overdue" : bucket === "due_soon" ? "due-soon" : bucket === "today" ? "today"
@@ -63,6 +73,7 @@ export function FollowUpItem({ f, showEntity = true }: { f: FollowUp; showEntity
         <Button size="sm" onClick={() => setMode("note")}><NotebookPen size={15} />Note</Button>
         <Link className="btn btn-sm" to={link}><ExternalLink size={15} />Open</Link>
         {open && <Button size="sm" variant="ghost" aria-label="Cancel follow-up" onClick={() => setMode("cancel")}><X size={15} /></Button>}
+        <Button size="sm" variant="ghost" aria-label="Delete follow-up" onClick={() => void remove()}><Trash2 size={15} /></Button>
       </div>
 
       {mode === "edit" && <FollowUpForm existing={f} onClose={close} />}

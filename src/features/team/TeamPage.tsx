@@ -11,12 +11,17 @@ type Row = { id: string; username: string; full_name: string; role: Role; is_act
 
 async function admin<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("admin-users", { body });
-  if (error) {
-    let msg = "Request failed";
-    try { const r = (error as { context?: Response }).context; if (r) msg = (await r.json()).error ?? msg; } catch { /* keep generic */ }
-    throw new Error(msg);
+  if (!error) return data as T;
+  const name = (error as { name?: string }).name;
+  if (name === "FunctionsFetchError") throw new Error("Could not reach the admin function. Check that it is deployed as “admin-users” and that this site’s address is allowed in its ALLOWED_ORIGINS secret.");
+  const res = (error as { context?: Response }).context;
+  if (res instanceof Response) {
+    let detail = ""; try { const j = await res.clone().json(); detail = j.error ?? j.message ?? j.msg ?? ""; } catch { /* not JSON */ }
+    if (res.status === 401) throw new Error(detail && detail !== "Invalid JWT" ? detail : "The admin function rejected your session. In Supabase → Edge Functions → admin-users → Details, turn OFF “Verify JWT with legacy secret” (the function checks the session itself), then try again.");
+    if (res.status === 403) throw new Error("Only an active Super Admin can do this.");
+    throw new Error(detail || `The admin function returned an error (${res.status}).`);
   }
-  return data as T;
+  throw new Error((error as { message?: string }).message ?? "Request failed");
 }
 
 function Secret({ title, username, password, onClose }: { title: string; username?: string; password: string; onClose: () => void }) {
@@ -64,7 +69,7 @@ export function TeamPage() {
                 : ROLE_LABEL[u.role]}</td>
               <td data-label="Status"><Badge tone={u.is_active ? "ok" : "danger"}>{u.is_active ? "Active" : "Deactivated"}</Badge></td>
               {manage && <td className="cell-actions"><div className="row" style={{ justifyContent: "flex-end" }}>
-                <Button size="sm" onClick={() => { if (confirm(`Reset the password for ${u.full_name}?`)) act.mutate({ kind: "reset", row: u }); }}><KeyRound size={14} />Reset password</Button>
+                <Button size="sm" onClick={() => { act.mutate({ kind: "reset", row: u }); }}><KeyRound size={14} />Reset password</Button>
                 {u.id !== profile!.id && <Button size="sm" variant={u.is_active ? "danger" : "default"} onClick={() => act.mutate({ kind: "active", row: u, value: !u.is_active })}>{u.is_active ? <><UserX size={14} />Deactivate</> : <><UserCheck size={14} />Activate</>}</Button>}</div></td>}
             </tr>))}</tbody></table></div>}
       </div>

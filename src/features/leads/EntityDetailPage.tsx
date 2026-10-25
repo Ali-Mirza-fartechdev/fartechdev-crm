@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, Pencil, UserCheck } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Handshake, Pencil, Trash2, UserCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, ListSkeleton, Skeleton, errMsg, useToast } from "@/components/ui";
@@ -11,6 +11,8 @@ import { FollowUpForm } from "@/features/followups/FollowUpForm";
 import { FollowUpItem } from "@/features/followups/FollowUpItem";
 import { useEntityFollowUps } from "@/features/followups/api";
 import { LeadForm, statusTone, useOwners } from "./LeadsPage";
+import { DealForm } from "@/features/deals/DealsPage";
+import { useConfirm } from "@/components/extra";
 import { ClientForm } from "@/features/clients/ClientsPage";
 
 /** One page for both leads and clients: details, notes, activity timeline, follow-ups. */
@@ -21,7 +23,7 @@ export function EntityDetailPage({ type }: { type: "lead" | "client" }) {
   const tz = profile!.timezone;
   const toast = useToast(); const qc = useQueryClient(); const nav = useNavigate();
   const owners = useOwners();
-  const [editing, setEditing] = useState(false); const [scheduling, setScheduling] = useState(false);
+  const [editing, setEditing] = useState(false); const [scheduling, setScheduling] = useState(false); const [dealing, setDealing] = useState(false); const confirmDlg = useConfirm();
   const [note, setNote] = useState("");
 
   const ent = useQuery({
@@ -50,6 +52,12 @@ export function EntityDetailPage({ type }: { type: "lead" | "client" }) {
     onSuccess: (cid) => { toast("Lead converted to client."); void qc.invalidateQueries(); nav(`/clients/${cid}`); }, onError: (e) => toast(errMsg(e), "error"),
   });
 
+  const remove = useMutation({
+    mutationFn: async () => { const { error } = await supabase.rpc(type === "lead" ? "delete_lead" : "delete_client", { p_id: id }); if (error) throw error; },
+    onSuccess: () => { toast(type === "lead" ? "Lead deleted." : "Client deleted."); void qc.invalidateQueries(); nav(type === "lead" ? "/leads" : "/clients"); },
+    onError: (e) => toast(errMsg(e), "error"),
+  });
+
   if (ent.isLoading) return <div className="page"><Skeleton h={40} w="50%" /><ListSkeleton /></div>;
   if (!ent.data) return <div className="page"><div className="glass card"><Empty title="Not found">This record does not exist or you do not have access to it.</Empty><p style={{ textAlign: "center" }}><Link to={type === "lead" ? "/leads" : "/clients"}>Back to list</Link></p></div></div>;
 
@@ -70,8 +78,10 @@ export function EntityDetailPage({ type }: { type: "lead" | "client" }) {
             {isLead && <Badge>{label(lead.temperature)}</Badge>}</div></div>
         <div className="page-actions">
           {can("followups.create") && <Button variant="primary" onClick={() => setScheduling(true)}><CalendarPlus size={18} />Schedule follow-up</Button>}
+          {can("deals.write") && !(isLead && lead.status === "converted" && lead.converted_client_id) && <Button onClick={() => setDealing(true)}><Handshake size={16} />Create deal</Button>}
           {canEdit && <Button onClick={() => setEditing(true)}><Pencil size={16} />Edit</Button>}
-          {isLead && can("clients.write") && !lead.converted_client_id && lead.status !== "converted" && <Button disabled={convert.isPending} onClick={() => { if (confirm("Convert this lead into a client?")) convert.mutate(); }}><UserCheck size={16} />Convert to client</Button>}
+          {canEdit && <Button variant="danger" onClick={async () => { if (await confirmDlg({ title: `Delete ${name}?`, body: isLead ? "Its follow-ups, notes and open deals are deleted. Use this for dead leads. A lead with a won deal must have the invoice removed first." : "Its follow-ups, notes and unwon deals are deleted. A client with invoices or projects cannot be deleted until those are removed.", danger: true, confirmLabel: "Delete" })) remove.mutate(); }}><Trash2 size={16} />Delete</Button>}
+          {isLead && can("clients.write") && !lead.converted_client_id && lead.status !== "converted" && <Button disabled={convert.isPending} onClick={async () => { if (await confirmDlg({ title: "Convert this lead into a client?", body: "Its deals move to the new client.", confirmLabel: "Convert" })) convert.mutate(); }}><UserCheck size={16} />Convert to client</Button>}
           {isLead && lead.converted_client_id && <Link className="btn" to={`/clients/${lead.converted_client_id}`}>View client</Link>}
         </div>
       </div>
@@ -100,6 +110,7 @@ export function EntityDetailPage({ type }: { type: "lead" | "client" }) {
           </section>
         </div>
       </div>
+      {dealing && <DealForm fixed={isLead ? { lead_id: id, name } : { client_id: id, name }} onClose={() => setDealing(false)} />}
       {scheduling && <FollowUpForm fixed={{ type, id, name }} onClose={() => setScheduling(false)} />}
       {editing && (isLead ? <LeadForm lead={lead} onClose={() => setEditing(false)} /> : <ClientForm client={client} onClose={() => setEditing(false)} />)}
     </div>

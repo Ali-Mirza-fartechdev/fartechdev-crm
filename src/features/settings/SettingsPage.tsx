@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { useTheme, type ThemeMode } from "@/theme/ThemeProvider";
 import { Badge, Button, Field, ListSkeleton, errMsg, useToast } from "@/components/ui";
+import { CurrencySelect } from "@/components/extra";
 import { REMINDER_OPTIONS, ROLES, ROLE_LABEL, ROLE_LABEL as RL } from "@/lib/types";
 import { formatInTz, relative } from "@/lib/time";
 import { passwordProblem } from "@/features/auth/ForcePasswordChange";
@@ -77,8 +78,8 @@ function RolesTab() {
 function OrgTab() {
   const { can } = useAuth(); const toast = useToast(); const qc = useQueryClient();
   const q = useQuery({ queryKey: ["org"], queryFn: async () => (await supabase.from("organization_settings").select("*").maybeSingle()).data });
-  const [f, setF] = useState<{ company_name: string; default_timezone: string; overdue_notice_minutes: number } | null>(null);
-  const cur = f ?? (q.data ? { company_name: q.data.company_name, default_timezone: q.data.default_timezone, overdue_notice_minutes: q.data.overdue_notice_minutes } : null);
+  const [f, setF] = useState<{ company_name: string; default_timezone: string; default_currency: string; overdue_notice_minutes: number } | null>(null);
+  const cur = f ?? (q.data ? { company_name: q.data.company_name, default_timezone: q.data.default_timezone, default_currency: String(q.data.default_currency).trim(), overdue_notice_minutes: q.data.overdue_notice_minutes } : null);
   const save = useMutation({ mutationFn: async () => { const { error } = await supabase.from("organization_settings").update(cur!).eq("id", true); if (error) throw error; },
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["org"] }); toast("Organization settings saved."); }, onError: (e) => toast(errMsg(e), "error") });
   if (!cur) return <ListSkeleton />;
@@ -86,6 +87,7 @@ function OrgTab() {
   return (<div className="stack"><div className="form-grid">
     <Field label="Company name">{(id) => <input id={id} className="input" disabled={ro} value={cur.company_name} onChange={(e) => setF({ ...cur, company_name: e.target.value })} />}</Field>
     <Field label="Default timezone">{(id) => <select id={id} className="select" disabled={ro} value={cur.default_timezone} onChange={(e) => setF({ ...cur, default_timezone: e.target.value })}>{zones().map((z) => <option key={z}>{z}</option>)}</select>}</Field>
+    <Field label="Default currency" hint="Pre-selected for new deals and invoices. Each record can use any currency.">{(id) => <CurrencySelect id={id} disabled={ro} value={cur.default_currency} onChange={(v) => setF({ ...cur, default_currency: v })} />}</Field>
     <Field label="Overdue alert after (minutes)" hint="Sent once if a follow-up is still open this long after its due time. Applies to newly scheduled follow-ups.">{(id) => <input id={id} type="number" min={1} max={10080} className="input" disabled={ro} value={cur.overdue_notice_minutes} onChange={(e) => setF({ ...cur, overdue_notice_minutes: Number(e.target.value) })} />}</Field></div>
     {!ro && <div><Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending}>Save</Button></div>}</div>);
 }

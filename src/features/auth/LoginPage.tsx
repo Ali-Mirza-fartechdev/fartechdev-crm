@@ -8,7 +8,7 @@ import { envProblems, envReady } from "@/lib/env";
 export function SetupNotice() {
   return (
     <div className="login-wrap"><div className="glass-strong login-card">
-      <div className="brand"><div className="brand-mark">F</div><div className="brand-name">FAR Tech CRM<small>Not configured yet</small></div></div>
+      <div className="brand"><img className="brand-logo" src="/logo.png" alt="" width={38} height={38} /><div className="brand-name">FAR Tech CRM<small>Not configured yet</small></div></div>
       <p>This build is not connected to a Supabase project, so sign-in is disabled. Create the <strong>new</strong> project and set:</p>
       <ul className="stack mono">{envProblems.map((p) => <li key={p}>{p}</li>)}</ul>
       <p className="hint">Copy <code>.env.example</code> to <code>.env.local</code>, fill the values from your new project, and restart. See docs/SETUP.md.</p>
@@ -33,7 +33,7 @@ export function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="glass-strong login-card" onSubmit={submit} noValidate>
-        <div className="brand" style={{ padding: 0 }}><div className="brand-mark">F</div><div className="brand-name">FAR Tech &amp; Developers<small>Customer relationship management</small></div></div>
+        <div className="brand" style={{ padding: 0 }}><img className="brand-logo" src="/logo.png" alt="" width={38} height={38} /><div className="brand-name">FAR Tech &amp; Developers<small>Customer relationship management</small></div></div>
         <div><h1>Sign in</h1><p className="muted" style={{ marginTop: 6 }}>Use the username your administrator gave you.</p></div>
         <Field label="Username">{(id) => <input id={id} className="input" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} required />}</Field>
         <Field label="Password" error={err}>{(id) => <input id={id} type="password" className="input" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!err} required />}</Field>

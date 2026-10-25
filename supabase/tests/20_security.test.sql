@@ -53,14 +53,16 @@ begin
   perform t.denied(format($s$select public.convert_lead_to_client(%L)$s$, L1), 'other user cannot convert someone else''s lead');
   perform t.as_admin();
 
-  -- deals + stage history
+  -- deals + stage history; Won is reserved for Finance approval
   select id into stage_won from public.pipeline_stages where is_won;
   perform t.as_user(t.uid('x'));
   insert into public.deals(title, lead_id, stage_id, value, owner_id)
     values ('Bluewave site', L2, (select id from public.pipeline_stages where position = 1), 5000, t.uid('x')) returning id into deal;
-  update public.deals set stage_id = stage_won where id = deal;
+  update public.deals set stage_id = (select id from public.pipeline_stages where position = 2) where id = deal;
+  perform t.denied(format($s$update public.deals set stage_id = %L where id = %L$s$, stage_won, deal), 'sales cannot move a deal to Won directly');
+  update public.deals set stage_id = (select id from public.pipeline_stages where is_lost) where id = deal;
   perform t.as_admin();
-  perform t.ok((select count(*) from public.deal_stage_history where deal_id = deal) = 2, 'deal stage changes are recorded');
+  perform t.ok((select count(*) from public.deal_stage_history where deal_id = deal) = 3, 'deal stage changes are recorded');
   perform t.ok((select closed_at is not null from public.deals where id = deal), 'closing a deal stamps closed_at');
 
   -- projects & tasks workflow
