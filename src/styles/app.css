@@ -420,3 +420,15 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-
 .move-select { display: none; min-height: 34px; font-size: 14px; }
 @media (hover: none) { .move-select { display: block; } .kcard { cursor: pointer; } }
 tr[data-highlight="true"] { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+/* Expanded sidebar: show a slim scrollbar so it is obvious there are more items below */
+.nav { scrollbar-width: thin; scrollbar-color: rgba(8, 169, 239, 0.45) transparent; }
+.nav::-webkit-scrollbar { display: block; width: 6px; }
+.nav::-webkit-scrollbar-thumb { background: rgba(8, 169, 239, 0.45); border-radius: 6px; }
+.shell[data-collapsed="true"] .nav { scrollbar-width: none; }
+.shell[data-collapsed="true"] .nav::-webkit-scrollbar { display: none; }
+@media (max-height: 900px) and (min-width: 961px) {
+  .nav-item { min-height: 36px; font-size: 0.88rem; }
+  .nav-group { margin-bottom: 2px; } .nav-group-title { padding: 6px 12px 2px; }
+  .brand { padding-bottom: 8px; }
+}

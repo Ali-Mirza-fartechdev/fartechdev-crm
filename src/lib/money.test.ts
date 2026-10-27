@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, convertWithBase, effectiveTarget, monthKey, sumConverted, targetProgress, type Rate } from "./money";
+import { addMonths, convertPartial, convertWithBase, missingFor, effectiveTarget, monthKey, sumConverted, targetProgress, type Rate } from "./money";
 
 const rates: Rate[] = [
   { month: "2026-10-01", currency: "USD", usd_per_unit: 1, pkr_per_unit: 280 },
@@ -31,6 +31,19 @@ describe("currency conversion", () => {
       { amount: 1000, currency: "EUR", month: "2026-10-01" }, { amount: 500, currency: "GBP", month: "2026-10-01" },
       { amount: 100, currency: "AED", month: "2026-10-01" }]);
     expect(s.usd).toBeCloseTo(1100 + 650); expect(s.missing).toEqual(["AED 2026-10"]); expect(s.allExact).toBe(true);
+  });
+});
+
+describe("partial conversion", () => {
+  it("a PKR amount is always known in PKR even with no rate; USD needs one", () => {
+    const p = convertPartial([], "PKR", "2026-10-01", 20000);
+    expect(p.pkr).toBe(20000); expect(p.usd).toBeNull();
+    const s = sumConverted([], [{ amount: 20000, currency: "PKR", month: "2026-10-01" }]);
+    expect(s.pkr).toBe(20000); expect(missingFor(s, "PKR")).toEqual([]); expect(missingFor(s, "USD")).toEqual(["PKR 2026-10"]);
+  });
+  it("a USD amount is always known in USD", () => {
+    const s = sumConverted([], [{ amount: 500, currency: "USD", month: "2026-10-01" }]);
+    expect(s.usd).toBe(500); expect(missingFor(s, "USD")).toEqual([]); expect(missingFor(s, "PKR")).toEqual(["USD 2026-10"]);
   });
 });
 

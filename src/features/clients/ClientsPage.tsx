@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Trash2, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, Field, ListSkeleton, Modal, Pager, errMsg, useToast } from "@/components/ui";
 import type { Client } from "@/lib/types";
 import { useOwners } from "@/features/leads/LeadsPage";
+import { useConfirm } from "@/components/extra";
 
 const PAGE = 25;
 
-export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
+export function ClientForm({ client, onClose, onDeleted }: { client?: Client; onClose: () => void; onDeleted?: () => void }) {
   const { profile, can } = useAuth();
-  const toast = useToast(); const qc = useQueryClient(); const owners = useOwners();
+  const toast = useToast(); const qc = useQueryClient(); const owners = useOwners(); const confirm = useConfirm();
   const [f, setF] = useState({ name: client?.name ?? "", contact_name: client?.contact_name ?? "", email: client?.email ?? "", phone: client?.phone ?? "", website: client?.website ?? "", industry: client?.industry ?? "", country: client?.country ?? "", notes: client?.notes ?? "", owner_id: client?.owner_id ?? profile!.id, is_active: client?.is_active ?? true });
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string | boolean) => setF((x) => ({ ...x, [k]: v }));
@@ -25,11 +26,20 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["clients"] }); void qc.invalidateQueries({ queryKey: ["entity"] }); toast(client ? "Client updated." : "Client created."); onClose(); },
     onError: (e) => toast(errMsg(e), "error"),
   });
+  const remove = useMutation({
+    mutationFn: async () => { const { error } = await supabase.rpc("delete_client", { p_id: client!.id }); if (error) throw error; },
+    onSuccess: () => { void qc.invalidateQueries(); toast("Client deleted."); onClose(); onDeleted?.(); },
+    onError: (e) => toast(errMsg(e), "error"),
+  });
+  const askDelete = async () => {
+    if (await confirm({ title: `Delete ${client!.name}?`, danger: true, confirmLabel: "Delete client",
+      body: "Its follow-ups, notes and unwon deals are deleted too. A client with invoices or projects cannot be deleted until those are removed." })) remove.mutate();
+  };
   const submit = () => { if (!f.name.trim()) return setErr("Client name is required."); if (f.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email)) return setErr("Enter a valid email."); setErr(null); save.mutate(); };
   const inp = (k: keyof typeof f, lab: string, type = "text", span = false) => <Field label={lab} className={span ? "span-2" : ""}>{(id) => <input id={id} type={type} className="input" value={String(f[k])} onChange={(e) => set(k, e.target.value)} />}</Field>;
   return (
     <Modal title={client ? "Edit client" : "New client"} onClose={onClose}
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={submit}>{save.isPending ? "Saving…" : "Save client"}</Button></>}>
+      footer={<>{client && <Button variant="danger" style={{ marginRight: "auto" }} disabled={remove.isPending} onClick={() => void askDelete()}><Trash2 size={15} />Delete client</Button>}<Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={submit}>{save.isPending ? "Saving…" : "Save client"}</Button></>}>
       <div className="form-grid">
         {inp("name", "Client / company name *", "text", true)}{inp("contact_name", "Primary contact")}{inp("industry", "Industry")}
         {inp("email", "Email", "email")}{inp("phone", "Phone", "tel")}{inp("website", "Website")}{inp("country", "Country")}

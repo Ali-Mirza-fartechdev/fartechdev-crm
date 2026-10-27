@@ -112,7 +112,7 @@ export function EntityDetailPage({ type }: { type: "lead" | "client" }) {
       </div>
       {dealing && <DealForm fixed={isLead ? { lead_id: id, name } : { client_id: id, name }} onClose={() => setDealing(false)} />}
       {scheduling && <FollowUpForm fixed={{ type, id, name }} onClose={() => setScheduling(false)} />}
-      {editing && (isLead ? <LeadForm lead={lead} onClose={() => setEditing(false)} /> : <ClientForm client={client} onClose={() => setEditing(false)} />)}
+      {editing && (isLead ? <LeadForm lead={lead} onClose={() => setEditing(false)} onDeleted={() => nav("/leads")} /> : <ClientForm client={client} onClose={() => setEditing(false)} onDeleted={() => nav("/clients")} />)}
     </div>
   );
 }

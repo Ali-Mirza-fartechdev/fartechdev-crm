@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, Field, ListSkeleton, Modal, errMsg, useToast } from "@/components/ui";
 import { CurrencySelect, MissingRates, Stat, useConfirm } from "@/components/extra";
-import { convertWithBase, formatMoney, monthKey, sumConverted } from "@/lib/money";
+import { convertPartial, formatMoney, missingFor, monthKey, sumConverted } from "@/lib/money";
 import { formatInTz } from "@/lib/time";
 import { useOrg, useRates, useStages, useTeam } from "@/lib/data";
 import type { Activity, Quote, Stage } from "@/lib/types";
@@ -123,8 +123,11 @@ export function DealsPage() {
   const list = useMemo(() => (deals.data ?? []).filter((d) => (!owner || d.owner_id === owner) && (!search || (d.title + dealParty(d)).toLowerCase().includes(search.toLowerCase()))), [deals.data, owner, search]);
   const stageOf = (d: DealRow) => st.find((s) => s.id === d.stage_id);
   const open = list.filter((d) => { const s = stageOf(d); return s && !s.is_won && !s.is_lost; });
-  const to = (d: DealRow, amount = d.value) => { const c = convertWithBase(r, d.currency, thisMonth, amount); return c ? (show === "USD" ? c.usd : c.pkr) : 0; };
-  const missing = [...new Set(open.filter((d) => !convertWithBase(r, d.currency, thisMonth, 1)).map((d) => d.currency))];
+  const to = (d: DealRow, amount = d.value) => { const c = convertPartial(r, d.currency, thisMonth, amount); return (show === "USD" ? c.usd : c.pkr) ?? 0; };
+  const missing = missingFor(sumConverted(r, open.map((d) => ({ amount: d.value, currency: d.currency, month: thisMonth }))), show);
+  const quoteStatus = useQuery({ queryKey: ["quotes", "by-deal"], refetchInterval: 60_000, queryFn: async () => {
+    const { data } = await supabase.from("quotes").select("deal_id,status,created_at").order("created_at", { ascending: false }).limit(3000);
+    const m = new Map<string, string>(); for (const q of data ?? []) if (!m.has(q.deal_id as string)) m.set(q.deal_id as string, q.status as string); return m; } });
   const pipeline = open.reduce((a, d) => a + to(d), 0);
   const weighted = open.reduce((a, d) => a + to(d, d.value * (stageOf(d)?.probability ?? 0) / 100), 0);
   const closing = open.filter((d) => d.expected_close_date && d.expected_close_date.slice(0, 7) === thisMonth.slice(0, 7));
@@ -140,7 +143,13 @@ export function DealsPage() {
   const tryMove = (d: DealRow, s: Stage) => {
     if (d.stage_id === s.id) return;
     if (d.won_confirmed_at) return toast("A won deal stays Won while its invoice exists.", "info");
-    if (s.is_won) return toast("Deals are marked Won by Finance after you submit a quote and it is approved.", "info");
+    if (s.is_won) {
+      const qs = quoteStatus.data?.get(d.id);
+      return toast(qs === "submitted" ? "This deal’s quote is with Finance. It becomes Won when Finance approves it."
+        : qs === "draft" ? "You have a DRAFT quote that Finance cannot see yet. Open the deal and press “Submit to Finance”."
+        : qs === "rejected" ? "Finance returned the quote. Open the deal, fix it and submit it again."
+        : "To win this deal, open it, create a quote and submit it to Finance. Finance approval marks it Won.", "info");
+    }
     move.mutate({ id: d.id, stage: s });
   };
 
@@ -162,7 +171,7 @@ export function DealsPage() {
         <Stat label="Closing this month" value={closing.length} sub={fmt(closing.reduce((a, d) => a + to(d), 0))} icon={<CalendarDays size={16} />} />
         <Stat label="Won this month" value={wonMonth.length} sub={fmt(show === "USD" ? wonSum.usd : wonSum.pkr)} tone="ok" icon={<Trophy size={16} />} />
       </div>
-      {missing.length > 0 && <MissingRates missing={missing.map((c) => `${c} ${thisMonth.slice(0, 7)}`)} />}
+      {missing.length > 0 && <MissingRates missing={missing} />}
 
       <div className="stage-strip" aria-label="Pipeline by stage">
         {st.filter((s) => !s.is_lost).map((s) => { const ds = list.filter((d) => d.stage_id === s.id); return (
@@ -188,6 +197,7 @@ export function DealsPage() {
                   <div key={d.id} role="button" tabIndex={0} className="kcard" data-won={!!d.won_confirmed_at} draggable={!d.won_confirmed_at}
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", d.id)} onClick={() => setParams({ deal: d.id })} onKeyDown={(e) => { if (e.key === "Enter") setParams({ deal: d.id }); }}>
                     <div className="kcard-top"><span className="kcard-amt">{formatMoney(d.value, d.currency)}</span>{d.won_confirmed_at ? <Badge tone="ok">Won</Badge> : s.is_lost ? <Badge tone="danger">Lost</Badge> : <Badge tone="brand">{s.probability}%</Badge>}</div>
+                    {!d.won_confirmed_at && !s.is_lost && quoteStatus.data?.get(d.id) && (quoteStatus.data.get(d.id) === "submitted" ? <Badge tone="warn">Quote with Finance</Badge> : quoteStatus.data.get(d.id) === "draft" ? <Badge tone="brand">Draft quote (not sent)</Badge> : quoteStatus.data.get(d.id) === "rejected" ? <Badge tone="danger">Quote returned</Badge> : null)}
                     <strong>{d.title}</strong><span className="muted" style={{ fontSize: "0.84rem" }}>{dealParty(d)}</span>
                     {!s.is_won && !s.is_lost && <div className="prob" aria-label={`Probability ${s.probability}%`}><i style={{ width: `${s.probability}%` }} /></div>}
                     <div className="kcard-top"><span className="faint" style={{ fontSize: "0.78rem" }}>{d.expected_close_date ? `Close ${d.expected_close_date}` : "No close date"}</span><span className="avatar" style={{ width: 26, height: 26, fontSize: "0.68rem" }} title={team.data?.find((u) => u.id === d.owner_id)?.full_name}>{initials(team.data?.find((u) => u.id === d.owner_id)?.full_name)}</span></div>

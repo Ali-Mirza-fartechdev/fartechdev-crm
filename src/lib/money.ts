@@ -57,17 +57,32 @@ export function convertWithBase(rates: Rate[], currency: string, month: string, 
   return convert(rates, currency, month, amount);
 }
 
-export type Sum = { usd: number; pkr: number; allExact: boolean; missing: string[] };
+export type Part = { usd: number | null; pkr: number | null; exact: boolean };
+/** Like convertWithBase, but a PKR amount is always known in PKR and a USD amount in USD, even when no rate exists. */
+export function convertPartial(rates: Rate[], currency: string, month: string, amount: number): Part {
+  const both = convertWithBase(rates, currency, month, amount);
+  if (both) return both;
+  if (currency === "PKR") return { usd: null, pkr: amount, exact: true };
+  if (currency === "USD") return { usd: amount, pkr: null, exact: true };
+  return { usd: null, pkr: null, exact: true };
+}
+
+export type Sum = { usd: number; pkr: number; allExact: boolean; missing: string[]; missingUsd: string[]; missingPkr: string[] };
 /** Sum amounts (each with its own currency + month) into USD and PKR, reporting which currencies lacked a rate. */
 export function sumConverted(rates: Rate[], items: { amount: number; currency: string; month: string }[]): Sum {
-  const out: Sum = { usd: 0, pkr: 0, allExact: true, missing: [] };
+  const out: Sum = { usd: 0, pkr: 0, allExact: true, missing: [], missingUsd: [], missingPkr: [] };
+  const add = (list: string[], k: string) => { if (!list.includes(k)) list.push(k); };
   for (const i of items) {
-    const c = convertWithBase(rates, i.currency, i.month, Number(i.amount));
-    if (!c) { if (!out.missing.includes(`${i.currency} ${i.month.slice(0, 7)}`)) out.missing.push(`${i.currency} ${i.month.slice(0, 7)}`); continue; }
-    out.usd += c.usd; out.pkr += c.pkr; if (!c.exact) out.allExact = false;
+    const p = convertPartial(rates, i.currency, i.month, Number(i.amount)); const key = `${i.currency} ${i.month.slice(0, 7)}`;
+    if (p.usd == null) add(out.missingUsd, key); else out.usd += p.usd;
+    if (p.pkr == null) add(out.missingPkr, key); else out.pkr += p.pkr;
+    if (p.usd == null || p.pkr == null) add(out.missing, key);
+    if (!p.exact) out.allExact = false;
   }
   return out;
 }
+/** The "rate needed" list that matters for the currency being displayed. */
+export const missingFor = (s: Sum, show: "USD" | "PKR") => (show === "USD" ? s.missingUsd : s.missingPkr);
 
 // ───────────── monthly targets ─────────────
 export type Target = { user_id: string; month: string; target_usd: number | null; target_pkr: number | null };

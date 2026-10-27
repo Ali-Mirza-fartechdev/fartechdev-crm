@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Empty, ListSkeleton } from "@/components/ui";
 import { Bars, Donut, LineChart, MissingRates, PALETTE, Stat } from "@/components/extra";
-import { effectiveTarget, formatMoney, monthKey, sumConverted, targetProgress } from "@/lib/money";
+import { effectiveTarget, formatMoney, missingFor, monthKey, sumConverted, targetProgress } from "@/lib/money";
 import { formatInTz, relative } from "@/lib/time";
 import { ROLE_LABEL, label } from "@/lib/types";
 import { useFollowUps } from "@/features/followups/api";
@@ -101,7 +101,7 @@ export function DashboardPage() {
         {can("finance.view") && <Stat icon={<Wallet size={16} />} label="Outstanding" value={fmt(pick(outstanding))} sub="Invoiced, not yet received" />}
         <Stat icon={<CalendarClock size={16} />} label="Tasks & follow-ups due" value={tasksDue} sub={overdueAll > 0 ? <Badge tone="danger">{overdueAll} overdue · action required</Badge> : "Nothing overdue"} tone={overdueAll > 0 ? "danger" : undefined} />
       </div>
-      <MissingRates missing={m.wonCur.missing} />
+      <MissingRates missing={missingFor(m.wonCur, show)} />
 
       {m.myProgress && (
         <section className="glass card"><div className="card-head"><h2>My monthly target</h2>{m.myProgress.t?.carried && <Badge tone="warn">Carried over</Badge>}</div>

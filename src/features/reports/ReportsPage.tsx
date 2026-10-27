@@ -3,7 +3,7 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, ListSkeleton } from "@/components/ui";
 import { Bars, Donut, LineChart, MissingRates, PALETTE, PairedColumns, Stat } from "@/components/extra";
-import { addMonths, formatMoney, monthKey, monthLabel, sumConverted } from "@/lib/money";
+import { addMonths, formatMoney, missingFor, monthKey, monthLabel, sumConverted } from "@/lib/money";
 import { label } from "@/lib/types";
 import { PERIODS, buckets, collected, delta, downloadCsv, inRange, isWon, periodRanges, stageOf, useAnalytics, wonRevenue, type PeriodKey } from "./analytics";
 
@@ -60,7 +60,7 @@ export function ReportsPage() {
     return { u, assigned: mine.length, done, prog, over, vel: mine.length ? Math.round((done / mine.length) * 100) : 0 };
   }).filter((p) => p.assigned > 0), [a.team, a.tasks]);
 
-  const missing = [...new Set([...d.wonCur.missing, ...d.cashCur.missing])];
+  const missing = [...new Set([...missingFor(d.wonCur, show), ...missingFor(d.cashCur, show)])];
   const winRate = d.leadsCur.length ? (d.wonCur.won.length / d.leadsCur.length) * 100 : 0;
   const exports: [string, string, () => Record<string, unknown>[]][] = [
     ["Leads", "Source, status and owner of every lead you can see.", () => a.leads.map((l) => ({ id: l.id, status: l.status, source: l.source, created_at: l.created_at }))],
@@ -110,7 +110,7 @@ export function ReportsPage() {
             <section className="glass card"><div className="card-head"><div><h2>Receivables &amp; aging</h2><span className="faint">{rev.openCount} open invoices</span></div></div>
               <div className="kpi-value" style={{ marginBottom: 10 }}>{fmt(show === "USD" ? rev.outstanding.usd : rev.outstanding.pkr)}</div>
               <Bars rows={rev.aging.map((g, i) => ({ label: g.label, sub: `(${g.n})`, value: show === "USD" ? g.sum.usd : g.sum.pkr, display: fmt(show === "USD" ? g.sum.usd : g.sum.pkr), color: i >= 2 ? "var(--danger)" : i === 1 ? "var(--warn)" : undefined }))} />
-              <MissingRates missing={rev.outstanding.missing} /></section>
+              <MissingRates missing={missingFor(rev.outstanding, show)} /></section>
           </div>)}
 
         {(tab === "overview" || tab === "delivery") && can("reports.projects") && (

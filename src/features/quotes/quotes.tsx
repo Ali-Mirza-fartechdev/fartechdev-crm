@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, Plus, Printer, Send, Trash2 } from "lucide-react";
@@ -48,6 +48,9 @@ export function QuoteForm({ deal, quote, onClose, onSaved }: { deal: DealRow; qu
   const [items, setItems] = useState<Draft[] | null>(null);
   const [prefilled, setPrefilled] = useState(!!quote);
   const [err, setErr] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const errRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (err) errRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [err]);
   if (!prefilled && party.data) { setPrefilled(true); setF((x) => ({ ...x, customer_name: party.data!.name ?? "", customer_company: party.data!.company ?? "", customer_email: party.data!.email ?? "", customer_country: party.data!.country ?? "" })); }
   const rows: Draft[] = items ?? (existing.data?.length ? existing.data.map((i) => ({ description: i.description, quantity: String(i.quantity), unit_price: String(i.unit_price) })) : [{ description: "", quantity: "1", unit_price: "" }]);
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
@@ -64,16 +67,16 @@ export function QuoteForm({ deal, quote, onClose, onSaved }: { deal: DealRow; qu
       const row = { currency: f.currency, customer_name: f.customer_name.trim(), customer_company: f.customer_company.trim() || null, customer_email: f.customer_email.trim() || null,
         customer_country: f.customer_country.trim() || null, project_title: f.project_title.trim(), project_description: f.project_description.trim() || null,
         delivery_date: f.delivery_date || null, payment_terms: f.payment_terms.trim() || null, tax_rate: Number(f.tax_rate) || 0, notes: f.notes.trim() || null };
-      let id = quote?.id;
+      let id = quote?.id ?? savedId ?? undefined;   // a retry must update the same quote, never create a duplicate
       if (id) { const { error } = await supabase.from("quotes").update(row).eq("id", id); if (error) throw error; const d = await supabase.from("quote_items").delete().eq("quote_id", id); if (d.error) throw d.error; }
-      else { const { data, error } = await supabase.from("quotes").insert({ ...row, deal_id: deal.id }).select("id").single(); if (error) throw error; id = data.id as string; }
+      else { const { data, error } = await supabase.from("quotes").insert({ ...row, deal_id: deal.id }).select("id").single(); if (error) throw error; id = data.id as string; setSavedId(id); }
       if (valid.length) { const { error } = await supabase.from("quote_items").insert(valid.map((r, i) => ({ quote_id: id, position: i, description: r.description.trim(), quantity: Number(r.quantity), unit_price: Number(r.unit_price) }))); if (error) throw error; }
-      if (submit) { const { error } = await supabase.rpc("submit_quote", { p_id: id }); if (error) throw error; }
+      if (submit) { const { error } = await supabase.rpc("submit_quote", { p_id: id }); if (error) throw new Error(`The quote was saved as a draft but NOT sent to Finance: ${error.message}`); }
       return { id: id!, submit };
     },
     onSuccess: ({ id, submit }) => {
       void qc.invalidateQueries({ queryKey: ["quotes"] }); void qc.invalidateQueries({ queryKey: ["quote-items"] }); void qc.invalidateQueries({ queryKey: ["deals"] }); void qc.invalidateQueries({ queryKey: ["activities"] });
-      toast(submit ? "Quote sent to Finance for approval." : "Quote saved as a draft."); onSaved?.(id); onClose();
+      toast(submit ? "Sent to Finance. They can now approve it under Finance → Quotes." : "Saved as a DRAFT. Finance cannot see it until you press Submit to Finance."); onSaved?.(id); onClose();
     },
     onError: (e) => setErr(errMsg(e)),
   });
@@ -83,6 +86,7 @@ export function QuoteForm({ deal, quote, onClose, onSaved }: { deal: DealRow; qu
     <Modal title={quote ? `Edit quote ${quote.quote_number}` : "New quote"} onClose={onClose}
       footer={<><Button onClick={onClose}>Cancel</Button><Button disabled={save.isPending} onClick={() => save.mutate(false)}>Save draft</Button>
         <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate(true)}><Send size={15} />Submit to Finance</Button></>}>
+      {err && <div ref={errRef} className="glass card" role="alert" style={{ borderColor: "var(--danger)" }}><strong className="error-text">{err}</strong></div>}
       {quote?.status === "rejected" && quote.rejection_reason && <div className="glass card" style={{ borderColor: "var(--danger)" }}><strong>Returned by Finance</strong><p className="muted">{quote.rejection_reason}</p></div>}
       <h3>Customer</h3>
       <div className="form-grid">{inp("customer_name", "Contact name *")}{inp("customer_company", "Company")}{inp("customer_email", "Email", { type: "email" })}{inp("customer_country", "Country")}</div>
@@ -111,7 +115,6 @@ export function QuoteForm({ deal, quote, onClose, onSaved }: { deal: DealRow; qu
         <Field label="Payment terms / upfront proposal" className="span-2" hint="Finance makes the final decision on whether an upfront payment is required.">{(id) => <textarea id={id} className="textarea" style={{ minHeight: 70 }} value={f.payment_terms} onChange={(e) => set("payment_terms", e.target.value)} placeholder="e.g. 50% upfront, balance on delivery" />}</Field>
         <Field label="Internal notes for Finance" className="span-2">{(id) => <textarea id={id} className="textarea" style={{ minHeight: 70 }} value={f.notes} onChange={(e) => set("notes", e.target.value)} />}</Field>
       </div>
-      {err && <p className="error-text" role="alert">{err}</p>}
     </Modal>
   );
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, UserPlus } from "lucide-react";
+import { Plus, Search, Trash2, UserPlus } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, Field, ListSkeleton, Modal, Pager, errMsg, useToast } from "@/components/ui";
+import { useConfirm } from "@/components/extra";
 import { LEAD_SOURCES, LEAD_STATUSES, label, type Lead, type LeadSource, type LeadStatus } from "@/lib/types";
 
 const PAGE = 25;
@@ -24,9 +25,9 @@ export function useOwners() {
   return useQuery({ queryKey: ["owners"], staleTime: 60_000, queryFn: async () => (await supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name")).data ?? [] });
 }
 
-export function LeadForm({ lead, onClose }: { lead?: Lead; onClose: () => void }) {
+export function LeadForm({ lead, onClose, onDeleted }: { lead?: Lead; onClose: () => void; onDeleted?: () => void }) {
   const { profile, can } = useAuth();
-  const toast = useToast(); const qc = useQueryClient();
+  const toast = useToast(); const qc = useQueryClient(); const confirm = useConfirm();
   const owners = useOwners();
   const [f, setF] = useState({
     full_name: lead?.full_name ?? "", company: lead?.company ?? "", job_title: lead?.job_title ?? "", email: lead?.email ?? "", phone: lead?.phone ?? "",
@@ -46,6 +47,16 @@ export function LeadForm({ lead, onClose }: { lead?: Lead; onClose: () => void }
     onError: (e) => toast(errMsg(e), "error"),
   });
 
+  const remove = useMutation({
+    mutationFn: async () => { const { error } = await supabase.rpc("delete_lead", { p_id: lead!.id }); if (error) throw error; },
+    onSuccess: () => { void qc.invalidateQueries(); toast("Lead deleted."); onClose(); onDeleted?.(); },
+    onError: (e) => toast(errMsg(e), "error"),
+  });
+  async function askDelete() {
+    if (await confirm({ title: `Delete ${lead!.full_name}?`, danger: true, confirmLabel: "Delete lead",
+      body: "Use this for dead leads. Its follow-ups, notes and open deals are deleted too. A lead with a won deal must have its invoice removed by Finance first." })) remove.mutate();
+  }
+
   function submit() {
     const r = schema.safeParse(f);
     if (!r.success) { setErrors(Object.fromEntries(r.error.issues.map((i) => [String(i.path[0]), i.message]))); return; }
@@ -56,7 +67,7 @@ export function LeadForm({ lead, onClose }: { lead?: Lead; onClose: () => void }
 
   return (
     <Modal title={lead ? "Edit lead" : "New lead"} onClose={onClose}
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={submit}>{save.isPending ? "Saving…" : "Save lead"}</Button></>}>
+      footer={<>{lead && <Button variant="danger" style={{ marginRight: "auto" }} disabled={remove.isPending} onClick={() => void askDelete()}><Trash2 size={15} />Delete lead</Button>}<Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={submit}>{save.isPending ? "Saving…" : "Save lead"}</Button></>}>
       <div className="form-grid">
         {text("full_name", "Full name *")}{text("company", "Company")}{text("job_title", "Job title")}{text("country", "Country")}
         {text("email", "Email", { type: "email" })}{text("phone", "Phone", { type: "tel" })}{text("linkedin_url", "LinkedIn / profile URL", { span: true })}
