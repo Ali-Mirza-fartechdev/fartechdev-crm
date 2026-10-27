@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { envReady } from "@/lib/env";
@@ -21,6 +22,8 @@ import { ProjectsPage, ProjectDetailPage } from "@/features/projects/ProjectsPag
 import { TasksPage } from "@/features/tasks/TasksPage";
 import { ReportsPage } from "@/features/reports/ReportsPage";
 import { TargetsPage } from "@/features/targets/TargetsPage";
+import { MeetingsPage } from "@/features/meetings/MeetingsPage";
+const MeetingRoom = lazy(() => import("@/features/meetings/MeetingRoom"));
 
 
 export default function App() {
@@ -42,6 +45,8 @@ export default function App() {
         <Route path="team" element={<TeamPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="messages" element={<MessagesPage />} />
+        <Route path="meetings" element={<MeetingsPage />} />
+        <Route path="meetings/:id/room" element={<Suspense fallback={<div className="page"><Skeleton h={24} w="40%" /></div>}><MeetingRoom /></Suspense>} />
         <Route path="deals" element={<DealsPage />} />
         <Route path="quotes" element={<QuotesPage />} />
         <Route path="finance" element={<FinancePage />} />

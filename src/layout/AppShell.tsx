@@ -2,22 +2,24 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BarChart3, BellRing, CalendarClock, ChevronsLeft, ChevronsRight, FileText, FolderKanban, Handshake, LayoutDashboard, ListChecks,
-  LogOut, Menu, MessagesSquare, Monitor, Moon, Receipt, Settings, Sun, Target, UserPlus, Users, UsersRound, type LucideIcon,
+  LogOut, Menu, MessagesSquare, Video, Monitor, Moon, Receipt, Settings, Sun, Target, UserPlus, Users, UsersRound, type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { useTheme, type ThemeMode } from "@/theme/ThemeProvider";
 import { Button } from "@/components/ui";
 import { ROLE_LABEL, type Role } from "@/lib/types";
 import { useUnreadMessages } from "@/features/messages/MessagesPage";
+import { useMeetingBadge, useMeetingRealtime } from "@/features/meetings/MeetingsPage";
 import { NotificationBell, useNotificationRealtime, useUnreadCount } from "@/features/notifications/notifications";
 
-type Item = { to: string; label: string; icon: LucideIcon; show: (can: (p: string) => boolean, role: Role) => boolean; badge?: "notifications" | "messages" };
+type Item = { to: string; label: string; icon: LucideIcon; show: (can: (p: string) => boolean, role: Role) => boolean; badge?: "notifications" | "messages" | "meetings" };
 type Group = { title: string; items: Item[] };
 const NAV: Group[] = [
   { title: "Workspace", items: [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, show: () => true },
     { to: "/follow-ups", label: "Follow-ups", icon: CalendarClock, show: (c) => c("followups.create") || c("followups.view_all") },
     { to: "/messages", label: "Messages", icon: MessagesSquare, show: () => true, badge: "messages" },
+    { to: "/meetings", label: "Meetings", icon: Video, show: () => true, badge: "meetings" },
     { to: "/notifications", label: "Notifications", icon: BellRing, show: () => true, badge: "notifications" },
   ] },
   { title: "Sales", items: [
@@ -57,6 +59,7 @@ export function AppShell() {
   const { pathname } = useLocation();
   const unread = useUnreadCount();
   const msgs = useUnreadMessages();
+  const mtgs = useMeetingBadge(); useMeetingRealtime();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("fartech.sidebar") === "1");
   const [drawer, setDrawer] = useState(false);
   useNotificationRealtime();
@@ -84,7 +87,7 @@ export function AppShell() {
               <div key={g.title} className="nav-group">
                 <div className="nav-group-title">{g.title}</div>
                 {items.map((i) => {
-                  const count = i.badge === "notifications" ? n : i.badge === "messages" ? (msgs.data ?? 0) : 0;
+                  const count = i.badge === "notifications" ? n : i.badge === "messages" ? (msgs.data ?? 0) : i.badge === "meetings" ? mtgs : 0;
                   return (
                     <NavLink key={i.to} to={i.to} end={i.to === "/"} className="nav-item" title={i.label}>
                       <i.icon size={20} /><span className="nav-label">{i.label}</span>

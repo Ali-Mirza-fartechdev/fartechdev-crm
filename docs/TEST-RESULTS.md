@@ -1,10 +1,8 @@
 # Test results
 
-Generated 2026-10-25 20:43 UTC. Database tests: PostgreSQL 16 (plain Postgres + stub of Supabase auth), Node v22.22.2.
+Generated 2026-10-27 20:19 UTC. DB tests: PostgreSQL 16 + stub of Supabase auth. **Not verified here:** pg_cron, Supabase Auth/Realtime, Edge Functions, LiveKit video, real-browser rendering.
 
-**Verified:** SQL schema, RLS, rules, reminder engine, quote→Finance→won workflow, deletes, messaging matrix, targets/rates permissions, upgrade of a populated DB, currency/target math. **Not verified here:** pg_cron, Supabase Auth/Realtime, the Edge Function, and rendering in a real browser.
-
-## Database: 145 checks passed, 0 failed
+## Database: 187 checks passed, 0 failed
 ```
 PASS: 1. follow-up persists with exact UTC instant (Asia/Karachi input)
 PASS: 10. same local-time input in 3 time zones resolves to ONE identical UTC instant
@@ -145,20 +143,52 @@ PASS: 9. Finance cannot message sales [blocked: You are not allowed to message t
 PASS: 9. messages are private to their two participants
 PASS: 9. a user only reads their own conversations
 PASS: 9. message text cannot be edited [blocked: permission denied for table messages]
-PASS: 10. targets can only go to Sales Executives [blocked: Targets can only be assigned to active Sales Executives]
+PASS: 10. targets can only go to Sales Executives [blocked: Targets can only be assigned to active Sales Executives or the CSO]
 PASS: 10. targets are keyed to the first day of a month [blocked: new row for relation "sales_targets" violates check constraint "sales_]
 PASS: 10. a sales executive sees their own target
 PASS: 10. ...and not a colleague's
 PASS: 10. everyone can read exchange rates (to see their own progress)
 PASS: 10. only Super Admin/CSO can enter rates [blocked: new row violates row-level security policy for table "exchange_rates"]
-```
-
-## Frontend
-```
- ✓ src/lib/money.test.ts (10 tests) 18ms
- ✓ src/lib/time.test.ts (5 tests) 16ms
- Test Files  2 passed (2)
-      Tests  15 passed (15)
-tsc: 0 errors
-Isolation check passed: no Supabase URLs, keys, connection strings or legacy-project references found.
+PASS: 40. Super Admin can set the CSO's target
+PASS: 40. Super Admin can set a Sales Executive's target
+PASS: 40. nobody can set a developer's target [blocked: Targets can only be assigned to active Sales Executives or the CSO]
+PASS: 40. CSO can set a Sales Executive's target
+PASS: 40. CSO cannot set their own target [blocked: Only the Super Admin can set the CSO's target]
+PASS: 40. CSO can read their own target
+PASS: 40. CSO cannot edit the target the Super Admin set for them
+PASS: 40. CSO cannot delete it either
+PASS: 40. CSO can edit a Sales Executive's target
+PASS: 40. a Sales Executive sees only their own targets
+PASS: 40. a Sales Executive cannot set targets [blocked: new row violates row-level security policy for table "sales_targets"]
+PASS: 50. an instant call starts immediately
+PASS: 50. the host is not counted as their own invitee (2 invitees)
+PASS: 50. each invitee is notified "X is calling you"
+PASS: 50. an uninvited user cannot see the meeting
+PASS: 50. ...or its participant list
+PASS: 50. an uninvited user cannot join [blocked: Meeting not found]
+PASS: 50. invitees see the meeting and who else is invited
+PASS: 50. an invitee who has NOT joined/accepted gets no room token
+PASS: 50. joining (answering) an instant call authorises the token
+PASS: 50. the host is always authorised
+PASS: 50. a stranger is never authorised
+PASS: 50. a person who declined gets no token
+PASS: 50. users cannot call the token-check function directly [blocked: permission denied for function meeting_join_check]
+PASS: 50. only the host can end a meeting [blocked: Only the host can end an open meeting]
+PASS: 50. only the host can invite more people [blocked: Only the host can invite people to an open meeting]
+PASS: 50. the host can add any number of people mid-call
+PASS: 50. nobody can join a meeting that has ended [blocked: This meeting is over]
+PASS: 51. cannot schedule a meeting in the past [blocked: The meeting time is in the past]
+PASS: 51. you cannot invite only yourself [blocked: Choose at least one person to invite]
+PASS: 51. each invitee gets a meeting request notification
+PASS: 51. cannot join before the host starts [blocked: The host has not started this meeting yet]
+PASS: 51. the host is told when someone accepts
+PASS: 51. an accepted invitee has no token until the meeting is live
+PASS: 51. only the host can start it [blocked: Only the host can start the meeting]
+PASS: 51. invitees are notified when the host starts
+PASS: 51. once live, the accepted invitee is authorised
+PASS: 52. host and accepted invitee get ONE reminder each (not duplicated by repeated runs)
+PASS: 52. the follow-up reminder processor still works through the wrapper
+PASS: 52. invitees are told when a meeting is cancelled
+PASS: 52. an invitee cannot delete the host's meeting [blocked: Meeting not found or not permitted]
+PASS: 52. the host can delete a meeting
 ```
