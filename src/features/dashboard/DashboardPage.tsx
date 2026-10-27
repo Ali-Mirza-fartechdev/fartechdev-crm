@@ -50,7 +50,7 @@ export function DashboardPage() {
     const bs = buckets(R.cur); let acc = 0;
     const actual = bs.map((b) => { acc += pick(wonRevenue(a.deals, a.rates, tz, { from: b.start, to: b.end })); return acc; });
     const month = monthKey(Date.now(), tz);
-    const reps = a.team.filter((u) => u.role === "sales_executive" && u.is_active && (can("targets.manage") || u.id === profile!.id));
+    const reps = a.team.filter((u) => (u.role === "sales_executive" || u.role === "cso") && u.is_active && (can("targets.manage") || u.id === profile!.id));
     const tgt = reps.map((u) => effectiveTarget(targets.data ?? [], u.id, month)).filter(Boolean);
     const monthly = tgt.reduce((x, t) => x + ((show === "USD" ? t!.target_usd : t!.target_pkr) ?? 0), 0);
     const days = (R.cur.to - R.cur.from) / DAY;
@@ -63,7 +63,7 @@ export function DashboardPage() {
     });
     const src = new Map<string, number>(); for (const l of a.leads.filter((x) => inRange(x.created_at, R.cur))) src.set(l.source, (src.get(l.source) ?? 0) + 1);
     const closed = a.deals.filter((d) => (isWon(d) && inRange(d.won_confirmed_at, R.cur)) || (stageOf(a.stages, d)?.is_lost && inRange(d.closed_at, R.cur))).length;
-    const myProgress = profile!.role === "sales_executive" ? (() => {
+    const myProgress = profile!.role === "sales_executive" || profile!.role === "cso" ? (() => {
       const t = effectiveTarget(targets.data ?? [], profile!.id, month);
       const w = wonRevenue(a.deals.filter((d) => d.owner_id === profile!.id), a.rates, tz, { from: Date.parse(month), to: Date.now() + 1 });
       return { t, p: targetProgress(t, w) };

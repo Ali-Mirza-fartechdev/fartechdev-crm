@@ -13,3 +13,4 @@ run tests/01_helpers_fixtures.sql
 run tests/10_followups.test.sql
 run tests/20_security.test.sql
 run tests/30_workflow.test.sql
+run tests/40_targets.test.sql

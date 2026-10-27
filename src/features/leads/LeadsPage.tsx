@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
 import { Badge, Button, Empty, Field, ListSkeleton, Modal, Pager, errMsg, useToast } from "@/components/ui";
 import { useConfirm } from "@/components/extra";
+import { useTeam } from "@/lib/data";
 import { LEAD_SOURCES, LEAD_STATUSES, label, type Lead, type LeadSource, type LeadStatus } from "@/lib/types";
 
 const PAGE = 25;
@@ -21,9 +22,8 @@ const schema = z.object({
   notes: z.string().max(10000).optional(),
 });
 
-export function useOwners() {
-  return useQuery({ queryKey: ["owners"], staleTime: 60_000, queryFn: async () => (await supabase.from("profiles").select("id,full_name,role").eq("is_active", true).order("full_name")).data ?? [] });
-}
+// One shared team query (same columns everywhere) so a different screen can never cache a list that lacks is_active/role.
+export const useOwners = useTeam;
 
 export function LeadForm({ lead, onClose, onDeleted }: { lead?: Lead; onClose: () => void; onDeleted?: () => void }) {
   const { profile, can } = useAuth();

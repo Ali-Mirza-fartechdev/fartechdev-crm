@@ -42,7 +42,12 @@ export function TargetsPage() {
   const [setting, setSetting] = useState<{ id: string; name: string } | null>(null);
   const deals = useDeals(); const targets = useTargets(); const rates = useRates(); const team = useTeam(); const currencies = useCurrencies();
   const r = rates.data ?? [];
-  const reps = (team.data ?? []).filter((u) => u.role === "sales_executive" && u.is_active && (manage || u.id === profile!.id));
+  const assignCso = can("targets.assign_cso");
+  // Super Admin: Sales Executives + CSO. CSO: Sales Executives (and sees their own target, read-only). Sales Executive: themselves.
+  const people = (team.data ?? []).filter((u) => u.is_active && (
+    manage ? (u.role === "sales_executive" || (u.role === "cso" && (assignCso || u.id === profile!.id))) : (u.role === "sales_executive" || u.role === "cso") && u.id === profile!.id));
+  const canSetFor = (u: { role: string }) => u.role === "sales_executive" ? manage : u.role === "cso" && assignCso;
+  const reps = people;
   const wonIn = useMemo(() => (deals.data ?? []).filter((d) => d.won_confirmed_at && monthKey(d.won_confirmed_at, tz) === month), [deals.data, month, tz]);
   const thisMonth = monthKey(Date.now(), tz);
 
@@ -68,10 +73,10 @@ export function TargetsPage() {
         <div className="page-actions"><div className="row"><Button size="sm" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft size={16} /></Button><strong style={{ minWidth: 150, textAlign: "center" }}>{monthLabel(month)}</strong>
           <Button size="sm" aria-label="Next month" disabled={month >= thisMonth} onClick={() => setMonth(addMonths(month, 1))}><ChevronRight size={16} /></Button></div></div></div>
       <div className="glass card">
-        <div className="tabs" role="tablist"><button role="tab" aria-selected={tab === "targets"} className="tab" onClick={() => setTab("targets")}>{manage ? "Sales targets" : "My target"}</button>
+        <div className="tabs" role="tablist"><button role="tab" aria-selected={tab === "targets"} className="tab" onClick={() => setTab("targets")}>{manage ? "Targets" : "My target"}</button>
           {(ratesManage) && <button role="tab" aria-selected={tab === "rates"} className="tab" onClick={() => setTab("rates")}>Month-end exchange rates</button>}</div>
         <div style={{ paddingTop: 16 }}>
-          {tab === "targets" && (deals.isLoading || targets.isLoading ? <ListSkeleton /> : !reps.length ? <Empty icon={<TargetIcon size={32} />} title="No sales executives yet">Add users with the Sales Executive role under Team.</Empty>
+          {tab === "targets" && (deals.isLoading || targets.isLoading ? <ListSkeleton /> : !reps.length ? <Empty icon={<TargetIcon size={32} />} title="No one to set targets for yet">Add users with the Sales Executive role under Team.</Empty>
             : <div className="stack">{reps.map((u) => {
               const eff = effectiveTarget(targets.data ?? [], u.id, month);
               const mine = wonIn.filter((d) => d.owner_id === u.id);
@@ -80,8 +85,8 @@ export function TargetsPage() {
               const tone = (pc: number | null) => (pc == null ? undefined : pc >= 100 ? "ok" : pc < 40 ? "warn" : undefined);
               return (
                 <div key={u.id} className="glass card">
-                  <div className="card-head"><div><h3>{u.full_name}</h3><span className="faint">{mine.length} deal{mine.length === 1 ? "" : "s"} won in {monthLabel(month)}</span></div>
-                    <div className="row">{eff?.carried && <Badge tone="warn">Carried from {monthLabel(eff.month)}</Badge>}{!eff && <Badge>No target set</Badge>}{manage && <Button size="sm" variant="primary" onClick={() => setSetting({ id: u.id, name: u.full_name })}>{eff && !eff.carried ? "Edit target" : "Set target"}</Button>}</div></div>
+                  <div className="card-head"><div><h3>{u.full_name} <Badge>{u.role === "cso" ? "CSO" : "Sales Executive"}</Badge></h3><span className="faint">{mine.length} deal{mine.length === 1 ? "" : "s"} won in {monthLabel(month)}</span></div>
+                    <div className="row">{eff?.carried && <Badge tone="warn">Carried from {monthLabel(eff.month)}</Badge>}{!eff && <Badge>No target set</Badge>}{canSetFor(u) && <Button size="sm" variant="primary" onClick={() => setSetting({ id: u.id, name: u.full_name })}>{eff && !eff.carried ? "Edit target" : "Set target"}</Button>}</div></div>
                   <div className="grid cols-2">
                     {([["USD", p.achievedUsd, p.usd, p.pctUsd], ["PKR", p.achievedPkr, p.pkr, p.pctPkr]] as const).map(([c, a, t, pc]) => (
                       <div key={c}><div className="row" style={{ justifyContent: "space-between" }}><strong>{formatMoney(a, c, { compact: true })}</strong><span className="muted">{t != null ? `of ${formatMoney(t, c, { compact: true })}` : "no target"}</span></div>
