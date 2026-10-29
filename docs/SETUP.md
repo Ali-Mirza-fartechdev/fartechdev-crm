@@ -70,3 +70,19 @@ Hosting env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_AUTH_EMAI
 | 5 | Realtime toast | Keep tab open, schedule a due-now follow-up → toast + bell badge without refresh |
 | 6 | Mobile | Test at 320/375/768/1024/1440 px (I could not render a browser) |
 | 7 | Username domain accepted by Auth | Bootstrap script succeeds (if Auth rejects the domain, use another domain you own) |
+
+
+## Restore pipeline stages
+If the New deal form has an empty Stage list, check in the SQL Editor of the NEW project:
+```sql
+select name, position, is_won, is_lost, probability from public.pipeline_stages order by position;
+select policyname, cmd from pg_policies where tablename = 'pipeline_stages';
+```
+No rows from the first query means the stages were removed; restore them (safe to run repeatedly):
+```sql
+insert into public.pipeline_stages(name, position, is_won, is_lost, probability) values
+ ('Qualified',1,false,false,20),('Pain identified',2,false,false,30),('Call booked',3,false,false,40),
+ ('Discovery done',4,false,false,50),('Proposal sent',5,false,false,60),('Negotiation',6,false,false,75),
+ ('Closed won',7,true,false,100),('Closed lost',8,false,true,0)
+on conflict do nothing;
+```

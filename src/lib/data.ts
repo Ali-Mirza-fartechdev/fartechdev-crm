@@ -15,7 +15,11 @@ export const useRates = () => useQuery({
 });
 export const useStages = () => useQuery({
   queryKey: ["stages"], staleTime: 300_000,
-  queryFn: async () => ((await supabase.from("pipeline_stages").select("id,name,position,is_won,is_lost,probability").order("position")).data ?? []) as Stage[],
+  queryFn: async () => {
+    const { data, error } = await supabase.from("pipeline_stages").select("id,name,position,is_won,is_lost,probability").order("position");
+    if (error) throw error; // never present a failed load as "no stages"
+    return (data ?? []) as Stage[];
+  },
 });
 export const useOrg = () => useQuery({
   queryKey: ["org"],

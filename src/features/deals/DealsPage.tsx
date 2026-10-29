@@ -26,11 +26,13 @@ export function DealForm({ onClose, fixed }: { onClose: () => void; fixed?: { le
     const { data } = await supabase.from(kind === "lead" ? "leads" : "clients").select(kind === "lead" ? "id,full_name,company" : "id,name").order("created_at", { ascending: false }).limit(200);
     return (data ?? []) as unknown as { id: string; full_name?: string; company?: string; name?: string }[]; } });
   const open = (stages.data ?? []).filter((s) => !s.is_won && !s.is_lost);
+  const noStages = !stages.isLoading && open.length === 0;
   const stageId = f.stage_id || open[0]?.id || ""; const cur = f.currency || org.data?.default_currency?.trim() || "USD";
   const save = useMutation({
     mutationFn: async () => {
       if (!f.title.trim()) throw new Error("Give the deal a title.");
       if (!party) throw new Error("Choose the lead or client.");
+      if (!stageId) throw new Error("There are no pipeline stages to put this deal in. See the warning above.");
       const row = { title: f.title.trim(), stage_id: stageId, value: Number(f.value) || 0, currency: cur, owner_id: f.owner_id, expected_close_date: f.expected_close_date || null, notes: f.notes.trim() || null,
         lead_id: kind === "lead" ? party : null, client_id: kind === "client" ? party : null };
       const { error } = await supabase.from("deals").insert(row); if (error) throw error;
@@ -39,6 +41,8 @@ export function DealForm({ onClose, fixed }: { onClose: () => void; fixed?: { le
   });
   return (
     <Modal title="New deal" onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Create deal"}</Button></>}>
+      {noStages && <div className="glass card" role="alert" style={{ borderColor: "var(--danger)" }}><strong className="error-text">No pipeline stages could be loaded.</strong>
+        <p className="muted">{stages.error ? `Reason: ${errMsg(stages.error)}` : "The pipeline_stages table is empty."} Ask the administrator to restore the stages (see docs/SETUP.md, “Restore pipeline stages”).</p></div>}
       <div className="form-grid">
         <Field label="Deal title *" className="span-2">{(id) => <input id={id} className="input" value={f.title} placeholder="Website redesign for Nova Digital" onChange={(e) => setF({ ...f, title: e.target.value })} />}</Field>
         {fixed ? <p className="span-2 muted">For: <strong>{fixed.name}</strong></p> : (<>
@@ -184,7 +188,10 @@ export function DealsPage() {
         {can("deals.view_all") && <select className="select" aria-label="Owner" value={owner} onChange={(e) => setOwner(e.target.value)}><option value="">All reps</option>{team.data?.filter((u) => ["sales_executive", "cso", "super_admin"].includes(u.role)).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select>}
       </div>
 
-      {deals.isLoading || stages.isLoading ? <div className="glass card"><ListSkeleton /></div>
+      {(stages.error || deals.error) ? <div className="glass card" role="alert" style={{ borderColor: "var(--danger)" }}><strong className="error-text">The pipeline could not be loaded.</strong>
+          <p className="muted">{errMsg(stages.error ?? deals.error)}</p><Button onClick={() => { void stages.refetch(); void deals.refetch(); }}>Try again</Button></div>
+        : !stages.isLoading && st.length === 0 ? <div className="glass card" role="alert" style={{ borderColor: "var(--danger)" }}><strong className="error-text">There are no pipeline stages.</strong><p className="muted">The pipeline_stages table is empty. Restore the stages (docs/SETUP.md, “Restore pipeline stages”).</p></div>
+        : deals.isLoading || stages.isLoading ? <div className="glass card"><ListSkeleton /></div>
         : view === "kanban" ? (
           <div className="kanban">
             {st.map((s) => { const ds = list.filter((d) => d.stage_id === s.id); return (
