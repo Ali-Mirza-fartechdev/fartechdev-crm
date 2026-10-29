@@ -1,7 +1,7 @@
-export type Role = "super_admin" | "cso" | "sales_executive" | "project_manager" | "team_lead" | "developer" | "finance";
+export type Role = "super_admin" | "cso" | "sales_executive" | "project_manager" | "team_lead" | "developer" | "ai_developer" | "finance";
 export const ROLE_LABEL: Record<Role, string> = {
   super_admin: "Super Admin", cso: "Chief Sales Officer", sales_executive: "Sales Executive",
-  project_manager: "Project Manager", team_lead: "Team Lead", developer: "Developer", finance: "Finance / Accounts",
+  project_manager: "Project Manager", team_lead: "Team Lead", developer: "Developer", ai_developer: "AI Developer", finance: "Finance / Accounts",
 };
 export const ROLES = Object.keys(ROLE_LABEL) as Role[];
 

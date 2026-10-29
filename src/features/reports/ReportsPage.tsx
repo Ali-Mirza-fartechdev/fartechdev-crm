@@ -54,7 +54,7 @@ export function ReportsPage() {
     return { months, invoiced, cash, aging: groups.map(([l, lst]) => ({ label: l, n: lst.length, sum: mk(lst) })), outstanding: mk(open), openCount: open.length };
   }, [a, tz, show]);
 
-  const people = useMemo(() => a.team.filter((u) => ["developer", "team_lead", "project_manager"].includes(u.role) && u.is_active).map((u) => {
+  const people = useMemo(() => a.team.filter((u) => ["developer", "ai_developer", "team_lead", "project_manager"].includes(u.role) && u.is_active).map((u) => {
     const mine = a.tasks.filter((t) => t.assigned_to === u.id && t.status !== "cancelled"); const today = new Date().toISOString().slice(0, 10);
     const done = mine.filter((t) => t.status === "done").length, prog = mine.filter((t) => t.status === "in_progress" || t.status === "in_review").length, over = mine.filter((t) => t.status !== "done" && t.due_date && t.due_date < today).length;
     return { u, assigned: mine.length, done, prog, over, vel: mine.length ? Math.round((done / mine.length) * 100) : 0 };

@@ -45,7 +45,7 @@ function ProjectForm({ project, onClose }: { project?: Project; onClose: () => v
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["projects"] }); void qc.invalidateQueries({ queryKey: ["members"] }); toast("Project saved."); onClose(); }, onError: (e) => setErr(errMsg(e)),
   });
   const pms = team.data?.filter((u) => u.is_active && (u.role === "project_manager" || u.role === "super_admin")) ?? []; const tls = team.data?.filter((u) => u.is_active && u.role === "team_lead") ?? [];
-  const devs = team.data?.filter((u) => u.is_active && (u.role === "developer" || u.role === "team_lead")) ?? [];
+  const devs = team.data?.filter((u) => u.is_active && (u.role === "developer" || u.role === "ai_developer" || u.role === "team_lead")) ?? [];
   return (
     <Modal title={project ? "Edit project" : "New project"} onClose={onClose} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={() => save.mutate()}>Save project</Button></>}>
       <div className="form-grid">
@@ -141,7 +141,7 @@ export function ProjectDetailPage() {
   const assignees = useMemo(() => {
     if (!p || !team.data) return [];
     const mem = new Set(members.data ?? []);
-    if (role === "team_lead") return team.data.filter((u) => u.is_active && (u.id === profile!.id || (u.role === "developer" && mem.has(u.id))));
+    if (role === "team_lead") return team.data.filter((u) => u.is_active && (u.id === profile!.id || ((u.role === "developer" || u.role === "ai_developer") && mem.has(u.id))));
     return team.data.filter((u) => u.is_active && (u.id === p.team_lead_id || mem.has(u.id)));
   }, [p, team.data, members.data, role, profile]);
   const del = async () => { if (!(await confirm({ title: "Delete this project?", body: "All its tasks are deleted too. Invoices linked to it are kept.", danger: true, confirmLabel: "Delete project" }))) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) return toast(errMsg(error), "error"); void qc.invalidateQueries({ queryKey: ["projects"] }); toast("Project deleted."); nav("/projects"); };

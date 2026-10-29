@@ -11,7 +11,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EMAIL_DOMAIN = Deno.env.get("AUTH_EMAIL_DOMAIN") ?? "crm.invalid";
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-const ROLES = ["super_admin", "cso", "sales_executive", "project_manager", "team_lead", "developer", "finance"] as const;
+const ROLES = ["super_admin", "cso", "sales_executive", "project_manager", "team_lead", "developer", "ai_developer", "finance"] as const;
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 const MAX_ADMIN_ACTIONS_PER_MINUTE = 20;
 
