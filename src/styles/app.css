@@ -432,3 +432,10 @@ tr[data-highlight="true"] { outline: 2px solid var(--brand); outline-offset: -2p
   .nav-group { margin-bottom: 2px; } .nav-group-title { padding: 6px 12px 2px; }
   .brand { padding-bottom: 8px; }
 }
+
+/* Chat: give the grid a DEFINITE row height so a long conversation scrolls inside the message area
+   instead of pushing the typing bar out of the panel. */
+.chat { grid-template-rows: minmax(0, 1fr); }
+.chat-list, .chat-pane { min-height: 0; }
+.chat-pane { overflow: hidden; }
+.chat-msgs { min-height: 0; overscroll-behavior: contain; }
